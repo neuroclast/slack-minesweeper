@@ -58,13 +58,19 @@ public class Game {
             List<Action> actList = new ArrayList<>();
 
             for(int x = 0; x < width; x++) {
+                String style = "default";
                 String text = "\u2007";
 
-                if(field[x][y] > 0) {
-                    text = Integer.toString(field[x][y]);
+                if(revealed[x][y]) {
+                    if(field[x][y] > 0) {
+                        text = Integer.toString(field[x][y]);
+                    }
+                    else {
+                        style = "primary";
+                    }
                 }
 
-                Action act = new Action.ActionBuilder().name("gameButton").text(text).type("button").value(x + "," + y).build();
+                Action act = new Action.ActionBuilder().name("gameButton").text(text).type("button").value(x + "," + y).style(style).build();
                 actList.add(act);
             }
 
@@ -82,6 +88,6 @@ public class Game {
      * @param y y coordinate
      */
     public void clickTile(int x, int y) {
-        field[x][y] = 5;
+        revealed[x][y] = true;
     }
 }

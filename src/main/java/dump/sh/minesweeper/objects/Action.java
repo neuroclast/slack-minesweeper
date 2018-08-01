@@ -8,6 +8,7 @@ public class Action {
         this.text = actionBuilder.text;
         this.type = actionBuilder.type;
         this.value = actionBuilder.value;
+        this.style = actionBuilder.style;
     }
 
     public String getId() {
@@ -63,6 +64,7 @@ public class Action {
         private String text;
         private String type;
         private String value;
+        private String style;
 
         public ActionBuilder name(String val) {
             name = val;
@@ -81,6 +83,11 @@ public class Action {
 
         public ActionBuilder value(String val) {
             value = val;
+            return this;
+        }
+
+        public ActionBuilder style(String val) {
+            style = val;
             return this;
         }
 
