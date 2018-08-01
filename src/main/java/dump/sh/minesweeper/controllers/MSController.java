@@ -42,6 +42,11 @@ public class MSController {
 
         // check if game does not exist
         if(!gameService.gameExists(channelId)) {
+            // check for game end command
+            if(text.equalsIgnoreCase("end")) {
+                return ResponseEntity.ok("No game in progress. Feel free to start one!");
+            }
+
             try {
                 int width = 5;
                 int height = 5;
@@ -137,12 +142,14 @@ public class MSController {
                 // find game object
                 Game game = gameService.getGame(im.getChannel().getId());
                 if(game == null) {
-                    return ResponseEntity.ok("Uh oh! Something went wrong! :(");
+                    return ResponseEntity.ok().build();
                 }
 
                 // parse button coordinates
                 String[] coords = im.getActions().get(0).value.split(",");
-                game.clickTile(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]));
+
+                // click tile!
+                int clickResult = game.clickTile(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]));
 
                 // get user display name
                 User user = getUserInfo(im.getUser().getId());
@@ -157,9 +164,20 @@ public class MSController {
                 // get updated board for response message
                 List<Attachment> atcList = game.getBoardAttachments();
 
+                // generate game text status
+                String statusText = "Woo! :grin: " + player + " revealed a safe tile at " + im.getActions().get(0).value + ".";
+                if(clickResult == 9) {
+                    statusText = "Game over, man! :cry: " + player + " hit a bomb at " + im.getActions().get(0).value + "!";
+                    gameService.endGame(im.getChannel().getId());
+                }
+                else if(clickResult == -1) {
+                    statusText = player + " clicked the last non-bomb. They win! :sunglasses: ";
+                    gameService.endGame(im.getChannel().getId());
+                }
+
                 // build message
                 Message msg = new Message.MessageBuilder()
-                        .text("Last move by " + player + " at " + im.getActions().get(0).value + ".")
+                        .text(statusText)
                         .channel(im.getChannel().getId())
                         .attachments(atcList)
                         .build();

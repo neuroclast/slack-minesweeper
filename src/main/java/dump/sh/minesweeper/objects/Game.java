@@ -7,6 +7,7 @@ import java.util.Random;
 
 public class Game {
 
+    private List<Point> mines;
     private int width, height, numMines;
     private int[][] field;
     private boolean[][] revealed;
@@ -23,6 +24,7 @@ public class Game {
         this.width = width;
         this.height = height;
         this.numMines = numMines;
+        mines = new ArrayList<>();
 
         // set all tiles to not-revealed
         this.revealed = new boolean[width][height];
@@ -43,6 +45,24 @@ public class Game {
             }
 
             field[x][y] = 9;
+            mines.add(new Point(x, y));
+        }
+
+        // generate integer distances to surrounding mines
+        for(int y = 0; y < height; y++) {
+            for(int x = 0; x < height; x++) {
+                if(field[x][y] == 9) {
+                    continue;
+                }
+
+                for(Point p: mines) {
+                    int distance = (int)Math.ceil(Math.hypot(x-p.x, y-p.y));
+
+                    if(distance == 1) {
+                        field[x][y]++;
+                    }
+                }
+            }
         }
     }
 
@@ -59,13 +79,18 @@ public class Game {
 
             for(int x = 0; x < width; x++) {
                 String style = "default";
-                String text = "\u2007";
+                String text = "\u3000";
 
                 if(revealed[x][y]) {
-                    if(field[x][y] > 0) {
-                        text = Integer.toString(field[x][y]);
+                    if(field[x][y] == 9) {
+                        text = ":collision:";
+                        style = "danger";
+                    }
+                    else if(field[x][y] > 0) {
+                        text = Integer.toString(field[x][y]) + "\u2000";
                     }
                     else {
+                        text = ":heavy_check_mark:";
                         style = "primary";
                     }
                 }
@@ -84,10 +109,31 @@ public class Game {
 
     /**
      * Handle user click on tile
-     * @param x x coordinate
-     * @param y y coordinate
+     * @param clickX x coordinate
+     * @param clickY y coordinate
+     * @return int
      */
-    public void clickTile(int x, int y) {
-        revealed[x][y] = true;
+    public int clickTile(int clickX, int clickY) {
+        revealed[clickX][clickY] = true;
+
+        // check for winning condition
+        if(field[clickX][clickY] != 9) {
+            int numRevealed = 0;
+            int totalTiles = width * height;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < height; x++) {
+                    if (revealed[x][y]) {
+                        numRevealed++;
+                    }
+                }
+            }
+
+            if(totalTiles - numRevealed == numMines) {
+                // winner winner chicken dinner!
+                return -1;
+            }
+        }
+
+        return field[clickX][clickY];
     }
 }
