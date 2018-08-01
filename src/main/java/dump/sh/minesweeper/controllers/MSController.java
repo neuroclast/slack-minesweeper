@@ -177,8 +177,11 @@ public class MSController {
                 Message msg = new Message.MessageBuilder()
                         .text(statusText)
                         .channel(im.getChannel().getId())
-                        .attachments(atcList)
                         .build();
+
+                if(clickResult != 9) {
+                    msg.setAttachments(atcList);
+                }
 
                 return ResponseEntity.ok(msg);
             }

@@ -56,9 +56,9 @@ public class Game {
                 }
 
                 for(Point p: mines) {
-                    int distance = (int)Math.ceil(Math.hypot(x-p.x, y-p.y));
+                    double distance = Math.hypot(x-p.x, y-p.y);
 
-                    if(distance == 1) {
+                    if(distance < 2) {
                         field[x][y]++;
                     }
                 }
