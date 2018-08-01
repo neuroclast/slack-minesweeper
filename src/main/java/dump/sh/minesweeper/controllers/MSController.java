@@ -35,7 +35,6 @@ public class MSController {
      */
     @RequestMapping("/slash-command")
     public ResponseEntity slashCommand(@RequestBody MultiValueMap<String, String> paramMap) {
-        System.out.println("slash-command called");
 
         String channelId = paramMap.getFirst("channel_id");
         String text = paramMap.getFirst("text");
@@ -121,7 +120,6 @@ public class MSController {
      */
     @RequestMapping("/button")
     public ResponseEntity button(@RequestBody String parameters) {
-        System.out.println("button called");
 
         if(parameters.contains("\"url_verification\"")) {
             // url verification of service
@@ -200,7 +198,6 @@ public class MSController {
      */
     @RequestMapping("/slack/authorize")
     public ResponseEntity authorize(@RequestParam String code) {
-        System.out.println("authorize called");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
