@@ -1,15 +1,11 @@
 package dump.sh.minesweeper.controllers;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import dump.sh.minesweeper.RequestResponseLoggingInterceptor;
 import dump.sh.minesweeper.objects.*;
 import dump.sh.minesweeper.services.GameService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,9 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.awt.*;
-import java.io.UnsupportedEncodingException;
-import java.util.*;
 import java.util.List;
 
 @RestController
@@ -34,14 +27,20 @@ public class MSController {
     @Autowired
     private GameService gameService;
 
-    @RequestMapping("/start-game")
-    public ResponseEntity startGame(@RequestBody MultiValueMap<String, String> paramMap) {
-        System.out.println("start-game called");
-        System.out.println(paramMap);
+
+    /**
+     * Handler for slash-command action
+     * @param paramMap form-encoded parameters from Slack
+     * @return ResponseEntity
+     */
+    @RequestMapping("/slash-command")
+    public ResponseEntity slashCommand(@RequestBody MultiValueMap<String, String> paramMap) {
+        System.out.println("slash-command called");
 
         String channelId = paramMap.getFirst("channel_id");
         String text = paramMap.getFirst("text");
 
+        // check if game does not exist
         if(!gameService.gameExists(channelId)) {
             try {
                 int width = 5;
@@ -75,22 +74,22 @@ public class MSController {
                 // game started! generate board for user
                 List<Attachment> atcList = game.getBoardAttachments();
 
+                // build headers
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("Authorization", "Bearer " + accessToken);
+
+                // build message
                 Message msg = new Message.MessageBuilder()
                         .text("Started new game! Click a tile to reveal. When only bombs are left, you win!")
                         .channel(channelId)
                         .attachments(atcList)
                         .build();
 
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("Authorization", "Bearer " + accessToken);
+                // send response
                 HttpEntity<Message> request = new HttpEntity<>(msg, headers);
-
                 RestTemplate rt = new RestTemplate();
-                String response = rt.postForObject("https://slack.com/api/chat.postMessage", request, String.class);
-
-                System.out.println(response);
+                rt.postForObject("https://slack.com/api/chat.postMessage", request, String.class);
 
                 return ResponseEntity.ok().build();
             }
@@ -99,6 +98,7 @@ public class MSController {
             }
         }
         else {
+            // check for game end command
             if(text.equalsIgnoreCase("end")) {
                 gameService.endGame(channelId);
                 return ResponseEntity.ok("Game ended.");
@@ -109,6 +109,11 @@ public class MSController {
     }
 
 
+    /**
+     * Button click handler
+     * @param parameters Payload from Slack
+     * @return ResponseEntity
+     */
     @RequestMapping("/button")
     public ResponseEntity button(@RequestBody String parameters) {
         System.out.println("button called");
@@ -135,22 +140,26 @@ public class MSController {
                     return ResponseEntity.ok("Uh oh! Something went wrong! :(");
                 }
 
+                // parse button coordinates
                 String[] coords = im.getActions().get(0).value.split(",");
-                game.revealTile(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]));
+                game.clickTile(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]));
 
-                List<Attachment> atcList = game.getBoardAttachments();
-
+                // get user display name
                 User user = getUserInfo(im.getUser().getId());
-
-                String player = user.profile.display_name_normalized;
-                if(player.length() == 0) {
-                    player = user.profile.real_name_normalized;
+                String player = im.getUser().getName();
+                if(user != null) {
+                    player = user.profile.display_name_normalized;
+                    if (player.length() == 0) {
+                        player = user.profile.real_name_normalized;
+                    }
                 }
 
-                String gameText = "Last move by " + user.profile.display_name_normalized + " at " + im.getActions().get(0).value;
+                // get updated board for response message
+                List<Attachment> atcList = game.getBoardAttachments();
 
+                // build message
                 Message msg = new Message.MessageBuilder()
-                        .text(gameText)
+                        .text("Last move by " + player + " at " + im.getActions().get(0).value + ".")
                         .channel(im.getChannel().getId())
                         .attachments(atcList)
                         .build();
@@ -162,10 +171,15 @@ public class MSController {
             }
         }
 
-        return ResponseEntity.ok("Button clicked!");
+        return ResponseEntity.ok("Unhandled action! x_x");
     }
 
 
+    /**
+     * Authroization handler for Slack
+     * @param code Auth code
+     * @return ResponseEntity
+     */
     @RequestMapping("/slack/authorize")
     public ResponseEntity authorize(@RequestParam String code) {
         System.out.println("authorize called");
@@ -186,28 +200,37 @@ public class MSController {
     }
 
 
+    /**
+     * Retrieves User object for specified user ID
+     * @param userId User ID
+     * @return User Object
+     */
     User getUserInfo(String userId) {
 
+        // build headers
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.set("Authorization", "Bearer " + accessToken);
         HttpEntity entity = new HttpEntity(headers);
 
+        // build GET URL
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString("https://slack.com/api/users.info")
                 .queryParam("token", accessToken)
                 .queryParam("user", userId);
 
+        // Send request
         RestTemplate rt = new RestTemplate();
         ResponseEntity<String> response = rt.exchange(builder.toUriString(), HttpMethod.GET, entity, String.class);
 
+        // good response
         if(response.toString().contains("\"ok\":true")) {
             Gson gson = new Gson();
             UserResponse ur = gson.fromJson(response.getBody(), UserResponse.class);
-
             return ur.user;
         }
 
+        // bad response
         return null;
     }
 

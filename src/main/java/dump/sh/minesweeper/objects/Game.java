@@ -40,6 +40,6 @@ public class Game {
     }
 
 
-    public void revealTile(int x, int y) {
+    public void clickTile(int x, int y) {
         field[x][y] = 5;}
 }
