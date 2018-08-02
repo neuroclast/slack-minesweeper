@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import dump.sh.minesweeper.objects.*;
 import dump.sh.minesweeper.repositories.LeaderboardRepository;
 import dump.sh.minesweeper.services.GameService;
-import dump.sh.minesweeper.utils.MapUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -76,7 +75,7 @@ public class MSController {
             }
         }
         // check for leaderboard request
-        else if(text.equalsIgnoreCase("leaderboard")) {
+        else if(text.equalsIgnoreCase("scores")) {
             String msgText = generateLeaderboardText(channelId, channelName);
 
             // build headers
@@ -104,7 +103,7 @@ public class MSController {
                 int height = 5;
                 int mines = 7;
 
-                if(text != null && text.length() > 0) {
+                if(text.length() > 0) {
                     // get field parameters
                     String parameters[] = text.split(",");
 
@@ -328,19 +327,60 @@ public class MSController {
 
             // update existing user
             if (lb.scores.containsKey(userId)) {
-                lb.scores.put(userId, lb.scores.get(userId) + scoreFactor);
+
+                UserScore us = lb.scores.get(userId);
+                us.score += scoreFactor;
+                us.displayName = userId;
+
+                // get user display name
+                User user = getUserInfo(userId);
+                if(user != null) {
+                    us.displayName = user.profile.display_name_normalized;
+                    if (us.displayName.length() == 0) {
+                        us.displayName = user.profile.real_name_normalized;
+                    }
+                }
+
+                lb.scores.put(userId, us);
                 leaderboardRepository.save(lb);
             }
             // add new user
             else {
-                lb.scores.put(userId, scoreFactor);
+                UserScore us = new UserScore();
+                us.score += scoreFactor;
+                us.displayName = userId;
+
+                // get user display name
+                User user = getUserInfo(userId);
+                if(user != null) {
+                    us.displayName = user.profile.display_name_normalized;
+                    if (us.displayName.length() == 0) {
+                        us.displayName = user.profile.real_name_normalized;
+                    }
+                }
+
+                lb.scores.put(userId, us);
                 leaderboardRepository.save(lb);
             }
         }
         // create new leaderboard
         else {
             lb = new Leaderboard(channelId);
-            lb.scores.put(userId, scoreFactor);
+
+            UserScore us = new UserScore();
+            us.score += scoreFactor;
+            us.displayName = userId;
+
+            // get user display name
+            User user = getUserInfo(userId);
+            if(user != null) {
+                us.displayName = user.profile.display_name_normalized;
+                if (us.displayName.length() == 0) {
+                    us.displayName = user.profile.real_name_normalized;
+                }
+            }
+
+            lb.scores.put(userId, us);
             leaderboardRepository.save(lb);
         }
     }
@@ -359,30 +399,14 @@ public class MSController {
 
         // found leaderboard
         if(lb != null) {
-            Map<String, Integer> scores = MapUtil.sortByValue(lb.scores);
+            List<UserScore> scores = lb.getSortedScores();
 
             text = String.format("Top 5 scores for *#%s*:\n", channelName);
 
-            int count = 0;
-            for(Map.Entry<String, Integer> score: scores.entrySet()) {
-
-                // get user info
-                User user = getUserInfo(score.getKey());
-                String player = score.getKey();
-                if(user != null) {
-                    player = user.profile.display_name_normalized;
-                    if (player.length() == 0) {
-                        player = user.profile.real_name_normalized;
-                    }
-                }
-
-                text += String.format("\t\u2022 %s: %d\n", player, score.getValue());
-
-                // only print the top 5 scores
-                count++;
-                if(count >= 5) {
-                    break;
-                }
+            // display first 5
+            for(int i = 0; i < scores.size() && i < 5; i++) {
+                UserScore us = scores.get(i);
+                text += String.format("\t\u2022 %s: %d\n", us.displayName, us.score);
             }
         }
 
