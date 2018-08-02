@@ -18,11 +18,17 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.List;
 
 @RestController
-@RequestMapping("/minesweeper")
+@RequestMapping("/api")
 public class MSController {
 
     @Value("${ACCESS_TOKEN}")
     private String accessToken;
+
+    @Value("${CLIENT_ID}")
+    private String clientId;
+
+    @Value("${CLIENT_SECRET}")
+    private String clientSecret;
 
     @Autowired
     private GameService gameService;
@@ -149,6 +155,11 @@ public class MSController {
                 // click tile!
                 int clickResult = game.clickTile(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]));
 
+                if(clickResult == -2) {
+                    // do nothing if this tile has already been revealed
+                    return ResponseEntity.ok().build();
+                }
+
                 // get user display name
                 User user = getUserInfo(im.getUser().getId());
                 String player = im.getUser().getName();
@@ -179,7 +190,7 @@ public class MSController {
                         .channel(im.getChannel().getId())
                         .build();
 
-                if(clickResult != 9) {
+                if(clickResult != 9 && clickResult != -1) {
                     msg.setAttachments(atcList);
                 }
 
@@ -206,10 +217,9 @@ public class MSController {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-        map.add("client_id","335547207316.406120316919");
-        map.add("client_secret","34430ac022923cddbe1e49585af8b3f1");
-        map.add("code", code);
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
+        map.add("client_id", clientId);
+        map.add("client_secret", clientSecret);
+        map.add("code", code);        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
 
         RestTemplate rt = new RestTemplate();
         String response = rt.postForObject("https://slack.com/api/oauth.access", entity, String.class);

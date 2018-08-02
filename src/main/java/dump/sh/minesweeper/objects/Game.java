@@ -114,6 +114,11 @@ public class Game {
      * @return int
      */
     public int clickTile(int clickX, int clickY) {
+        if(revealed[clickX][clickY]) {
+            // do nothing since we already revealed this one
+            return -2;
+        }
+
         revealed[clickX][clickY] = true;
 
         // check for winning condition
