@@ -11,10 +11,12 @@ public class Game {
     private int width, height, numMines;
     private int[][] field;
     private boolean[][] revealed;
+    private boolean generated = false;
+    private int scoreFactor = 0;
 
 
     /**
-     * Initializes a new game
+     * Initializes a new game state
      * @param width horizontal tiles
      * @param height vertical tiles
      * @param numMines number of mines on board
@@ -29,6 +31,33 @@ public class Game {
         // set all tiles to not-revealed
         this.revealed = new boolean[width][height];
 
+        // calc score factor
+        scoreFactor = (int) (10.0 * (double) numMines / ((double) width * (double) height));
+    }
+
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public int getNumMines() {
+        return numMines;
+    }
+
+    public int getScoreFactor() {
+        return scoreFactor;
+    }
+
+    /**
+     * Generates a new game field
+     * @param clickX x-coordinate user starts with
+     * @param clickY y-coordinate user starts with
+     */
+    public void generateField(int clickX, int clickY) {
         // place mines randomly in field
         // 'tries' prevents an endless loop in case of bar parameters
         int tries = 0;
@@ -37,8 +66,8 @@ public class Game {
             int x = rand.nextInt(width);
             int y = rand.nextInt(height);
 
-            // retry if this spot already has a mine
-            if(field[x][y] != 0) {
+            // retry if this spot already has a mine or if it's the starting spot
+            if(field[x][y] != 0 || (x == clickX && y == clickY)) {
                 i--;
                 tries++;
                 continue;
@@ -79,7 +108,7 @@ public class Game {
 
             for(int x = 0; x < width; x++) {
                 String style = "default";
-                String text = "\u3000";
+                String text = ":white:";
 
                 if(revealed[x][y]) {
                     if(field[x][y] == 9) {
@@ -90,7 +119,7 @@ public class Game {
                         text = Integer.toString(field[x][y]) + "\u2000";
                     }
                     else {
-                        text = ":heavy_check_mark:";
+                        text = ":white_check_mark:";
                         style = "primary";
                     }
                 }
@@ -114,11 +143,18 @@ public class Game {
      * @return int
      */
     public int clickTile(int clickX, int clickY) {
+        // do nothing if they click an already revealed tile
         if(revealed[clickX][clickY]) {
-            // do nothing since we already revealed this one
             return -2;
         }
 
+        // generate board if first click
+        if(!generated) {
+            generateField(clickX, clickY);
+            generated = true;
+        }
+
+        // reveal tile
         revealed[clickX][clickY] = true;
 
         // check for winning condition
